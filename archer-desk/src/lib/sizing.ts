@@ -9,6 +9,7 @@ export interface DraftSizing {
   tp: number | null;
   rr: number | null;
   directionOk: boolean | null;
+  riskPct: number;
   riskAmount: number;
   budgetRemaining: number;
   withinBudget: boolean | null;
@@ -19,6 +20,11 @@ export interface DraftSizing {
   needsConversion: boolean;
   conversionQuote: string | null;
   warning: string | null;
+}
+
+export function riskPctFor(s: Settings, phase: string): number {
+  const v = s.riskByPhase?.[phase];
+  return typeof v === 'number' && v > 0 ? v : s.riskPct;
 }
 
 export function presetFor(symbol: string) {
@@ -32,10 +38,11 @@ export function sizeDraft(d: TradeDraft, s: Settings): DraftSizing {
   const sl = num(d.sl);
   const tp = num(d.tp);
   const budget = riskBudget(s);
-  const riskAmount = Math.min((s.accountSize * s.riskPct) / 100, budget.remaining);
+  const riskPct = riskPctFor(s, d.phase);
+  const riskAmount = Math.min((s.accountSize * riskPct) / 100, budget.remaining);
   const base: DraftSizing = {
     entry, sl, tp, rr: null, directionOk: null,
-    riskAmount, budgetRemaining: budget.remaining, withinBudget: null,
+    riskPct, riskAmount, budgetRemaining: budget.remaining, withinBudget: null,
     size: null, sizeLabel: d.market === 'forex' ? 'lots' : 'qty',
     actualRisk: null, reward: null, needsConversion: false, conversionQuote: null, warning: null,
   };

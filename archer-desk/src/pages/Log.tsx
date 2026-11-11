@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Stat } from '../components/Field';
+import { ConfirmButton, Stat } from '../components/Field';
 import { fmt, fmtMoney } from '../lib/storage';
 import type { LogEntry } from '../lib/types';
 
@@ -70,7 +70,7 @@ export default function LogPage({ log, setLog, currency }: {
                   <td><span className={`pill v-${e.verdict.replace(' ', '').toLowerCase()}`}>{e.verdict}</span></td>
                   <td>{e.taken ? 'Ja' : 'Nee'}</td>
                   <td>
-                    <button className="icon" aria-label="Verwijderen" onClick={() => window.confirm('Verwijderen?') && setLog((l) => l.filter((x) => x.id !== e.id))}>✕</button>
+                    <ConfirmButton className="icon" ariaLabel="Verwijderen" confirmLabel="Wis?" onConfirm={() => setLog((l) => l.filter((x) => x.id !== e.id))}>✕</ConfirmButton>
                   </td>
                 </tr>
               ))}

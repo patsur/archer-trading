@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 
 export function Field({ label, children, hint }: { label: string; children: ReactNode; hint?: ReactNode }) {
   return (
@@ -55,5 +55,38 @@ export function Stat({ label, value, tone }: { label: string; value: ReactNode; 
       <span className="stat-label">{label}</span>
       <span className="stat-value">{value}</span>
     </div>
+  );
+}
+
+/** Two-step button: first tap arms it, second tap runs the action. No browser pop-ups. */
+export function ConfirmButton({ children, confirmLabel = 'Zeker? Tik nogmaals', onConfirm, className = 'ghost', disabled, ariaLabel }: {
+  children: ReactNode;
+  confirmLabel?: string;
+  onConfirm: () => void;
+  className?: string;
+  disabled?: boolean;
+  ariaLabel?: string;
+}) {
+  const [armed, setArmed] = useState(false);
+  useEffect(() => {
+    if (!armed) return;
+    const t = setTimeout(() => setArmed(false), 3500);
+    return () => clearTimeout(t);
+  }, [armed]);
+  return (
+    <button
+      type="button"
+      aria-label={ariaLabel}
+      disabled={disabled}
+      className={`${className} ${armed ? 'armed' : ''}`}
+      onClick={() => {
+        if (armed) {
+          setArmed(false);
+          onConfirm();
+        } else setArmed(true);
+      }}
+    >
+      {armed ? confirmLabel : children}
+    </button>
   );
 }

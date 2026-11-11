@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { Field, Segmented, Select, Stat } from '../components/Field';
+import { ConfirmButton, Field, Segmented, Select, Stat } from '../components/Field';
 import { CRYPTO_SYMBOLS, ENTRY_TYPES, FOREX_PRESETS, PHASES, ZONES, emptyDraft } from '../lib/defaults';
 import { sizeDraft } from '../lib/sizing';
 import { fmt, fmtMoney, uid } from '../lib/storage';
@@ -43,7 +43,6 @@ export default function ChecklistPage({ settings, template, draft, setDraft, onS
 
   const save = (taken: boolean) => {
     if (!draft.symbol) return;
-    if (taken && verdict === 'NO GO' && !window.confirm('Je checklist zegt NO GO. Toch genomen opslaan? Dit telt als regelbreuk in je logboek.')) return;
     onSave({
       id: uid(),
       createdAt: new Date().toISOString(),
@@ -157,7 +156,7 @@ export default function ChecklistPage({ settings, template, draft, setDraft, onS
         </div>
 
         <aside className="col-side">
-          <section className={`card verdict v-${verdict.replace(' ', '').toLowerCase()}`}>
+          <section id="verdict" className={`card verdict v-${verdict.replace(' ', '').toLowerCase()}`}>
             <div className="verdict-label">{verdict}</div>
             <div className="score-bar"><div style={{ width: `${score}%` }} /></div>
             <div className="muted mono small">{checkedCount}/{items.length} punten · {score}% (GO vanaf {settings.goThreshold}%)</div>
@@ -170,7 +169,7 @@ export default function ChecklistPage({ settings, template, draft, setDraft, onS
             {verdict !== 'NO GO' && !setupComplete && <p className="small muted">Vul symbool, fase, zone en entry type in.</p>}
           </section>
 
-          <section className="card">
+          <section className="card" id="plan">
             <h2>Trade plan</h2>
             <div className="grid-3 tight">
               <Field label="Entry"><input inputMode="decimal" value={draft.entry} onChange={(e) => update({ entry: e.target.value })} placeholder="1.08500" /></Field>
@@ -184,7 +183,7 @@ export default function ChecklistPage({ settings, template, draft, setDraft, onS
             )}
             <div className="stats">
               <Stat label={draft.market === 'forex' ? 'Lotsize' : 'Aantal'} value={sizing.size == null ? '—' : fmt(sizing.size, 3)} />
-              <Stat label="Risico" value={fmtMoney(sizing.actualRisk, settings.currency)} tone={sizing.withinBudget === false ? 'bad' : undefined} />
+              <Stat label={`Risico (${fmt(sizing.riskPct, 2)}%${draft.phase && settings.riskByPhase?.[draft.phase] ? ' · fase' : ''})`} value={fmtMoney(sizing.actualRisk, settings.currency)} tone={sizing.withinBudget === false ? 'bad' : undefined} />
               <Stat label="R:R" value={sizing.rr == null ? '—' : `${fmt(sizing.rr, 2)}R`} tone={sizing.rr == null ? undefined : sizing.rr >= settings.minRR ? 'good' : 'bad'} />
               <Stat label="Potentiële winst" value={fmtMoney(sizing.reward, settings.currency)} />
             </div>
@@ -194,11 +193,26 @@ export default function ChecklistPage({ settings, template, draft, setDraft, onS
           </section>
 
           <div className="actions">
-            <button className="primary" disabled={!draft.symbol} onClick={() => save(true)}>Trade genomen — opslaan</button>
+            {verdict === 'NO GO' ? (
+              <ConfirmButton className="primary" disabled={!draft.symbol} confirmLabel="NO GO: toch opslaan als regelbreuk?" onConfirm={() => save(true)}>
+                Trade genomen — opslaan
+              </ConfirmButton>
+            ) : (
+              <button className="primary" disabled={!draft.symbol} onClick={() => save(true)}>Trade genomen — opslaan</button>
+            )}
             <button className="ghost" disabled={!draft.symbol} onClick={() => save(false)}>Niet genomen — opslaan</button>
           </div>
         </aside>
       </div>
+
+      <a href="#plan" className={`mobile-bar v-${verdict.replace(' ', '').toLowerCase()}`} onClick={(e) => { e.preventDefault(); document.getElementById('plan')?.scrollIntoView({ behavior: 'smooth' }); }}>
+        <span className="mb-verdict">{verdict}</span>
+        <span className="mb-score mono">{score}%</span>
+        <span className="mb-meta mono">
+          {sizing.size == null ? 'vul plan in' : `${fmt(sizing.size, 3)} ${draft.market === 'forex' ? 'lots' : ''}`}
+          {sizing.rr != null && ` · ${fmt(sizing.rr, 2)}R`}
+        </span>
+      </a>
     </div>
   );
 }

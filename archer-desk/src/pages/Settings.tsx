@@ -1,7 +1,7 @@
-import { useRef } from 'react';
-import { Field } from '../components/Field';
-import { DEFAULT_TEMPLATE } from '../lib/defaults';
-import { downloadJson, num, uid } from '../lib/storage';
+import { useRef, useState } from 'react';
+import { ConfirmButton, Field } from '../components/Field';
+import { DEFAULT_TEMPLATE, PHASES } from '../lib/defaults';
+import { copyText, num, uid } from '../lib/storage';
 import type { ChecklistSection, LogEntry, Settings } from '../lib/types';
 
 interface Props {
@@ -18,7 +18,7 @@ const NUMBER_FIELDS: { key: keyof Settings; label: string; hint?: string }[] = [
   { key: 'balance', label: 'Huidige balans' },
   { key: 'todayPnl', label: 'P&L vandaag', hint: 'Negatief bij verlies, incl. floating' },
   { key: 'openRisk', label: 'Open risico', hint: 'Som van risico op lopende trades' },
-  { key: 'riskPct', label: 'Risico per trade %' },
+  { key: 'riskPct', label: 'Standaard risico per trade %', hint: 'Geldt als een fase geen eigen % heeft' },
   { key: 'maxDailyLossPct', label: 'Max daily loss %' },
   { key: 'maxTotalDdPct', label: 'Max drawdown %' },
   { key: 'minRR', label: 'Minimum R:R' },
@@ -30,19 +30,21 @@ const NUMBER_FIELDS: { key: keyof Settings; label: string; hint?: string }[] = [
 
 export default function SettingsPage({ settings, setSettings, template, setTemplate, log, setLog }: Props) {
   const fileRef = useRef<HTMLInputElement>(null);
+  const [backupText, setBackupText] = useState('');
+  const [backupMsg, setBackupMsg] = useState('');
 
   const editSection = (sid: string, fn: (s: ChecklistSection) => ChecklistSection) =>
     setTemplate((t) => t.map((s) => (s.id === sid ? fn(s) : s)));
 
-  const importFile = async (file: File) => {
+  const importText = (text: string) => {
     try {
-      const data = JSON.parse(await file.text());
+      const data = JSON.parse(text);
       if (data.settings) setSettings((s) => ({ ...s, ...data.settings }));
       if (Array.isArray(data.template)) setTemplate(() => data.template);
       if (Array.isArray(data.log)) setLog(() => data.log);
-      window.alert('Import gelukt.');
+      setBackupMsg('Back-up teruggezet.');
     } catch {
-      window.alert('Kon dit bestand niet lezen.');
+      setBackupMsg('Dit is geen geldige back-up. Plak de volledige tekst die je eerder kopieerde.');
     }
   };
 
@@ -80,13 +82,40 @@ export default function SettingsPage({ settings, setSettings, template, setTempl
             </Field>
           ))}
         </div>
+        <div className="phase-risk">
+          <div>
+            <h3>Risico per BluePrint-fase</h3>
+            <p className="muted small">Leeg laten = standaard risico. De checklist gebruikt het % van de fase die je kiest.</p>
+          </div>
+          <div className="grid-4">
+            {PHASES.map((ph) => (
+              <Field key={ph} label={ph}>
+                <input
+                  inputMode="decimal"
+                  placeholder={`${settings.riskPct}`}
+                  defaultValue={settings.riskByPhase?.[ph] != null ? String(settings.riskByPhase[ph]) : ''}
+                  key={`${ph}-${settings.riskByPhase?.[ph] ?? ''}`}
+                  onBlur={(e) => {
+                    const v = num(e.target.value);
+                    setSettings((s) => {
+                      const next = { ...(s.riskByPhase ?? {}) };
+                      if (v != null && v > 0) next[ph] = v;
+                      else delete next[ph];
+                      return { ...s, riskByPhase: next };
+                    });
+                  }}
+                />
+              </Field>
+            ))}
+          </div>
+        </div>
         <button className="ghost" onClick={() => setSettings((s) => ({ ...s, todayPnl: 0, openRisk: 0 }))}>Nieuwe handelsdag (reset P&L en open risico)</button>
       </section>
 
       <section className="card">
         <div className="row-between">
           <h2>Checklist bewerken</h2>
-          <button className="ghost" onClick={() => window.confirm('Terug naar de standaard checklist?') && setTemplate(() => DEFAULT_TEMPLATE)}>Standaard herstellen</button>
+          <ConfirmButton onConfirm={() => setTemplate(() => DEFAULT_TEMPLATE)}>Standaard herstellen</ConfirmButton>
         </div>
         <p className="muted small">Items met <span className="tag">auto</span> worden door de app zelf gecontroleerd vanuit je trade plan.</p>
         {template.map((section) => (
@@ -112,7 +141,7 @@ export default function SettingsPage({ settings, setSettings, template, setTempl
             ))}
             <div className="tpl-actions">
               <button className="link" onClick={() => editSection(section.id, (s) => ({ ...s, items: [...s.items, { id: uid(), text: 'Nieuwe regel', required: false }] }))}>+ Regel toevoegen</button>
-              <button className="link danger" onClick={() => window.confirm(`Sectie "${section.title}" verwijderen?`) && setTemplate((t) => t.filter((s) => s.id !== section.id))}>Sectie verwijderen</button>
+              <ConfirmButton className="link danger" onConfirm={() => setTemplate((t) => t.filter((s) => s.id !== section.id))}>Sectie verwijderen</ConfirmButton>
             </div>
           </div>
         ))}
@@ -121,11 +150,33 @@ export default function SettingsPage({ settings, setSettings, template, setTempl
 
       <section className="card">
         <h2>Back-up</h2>
-        <p className="muted small">Data staat alleen in deze browser. Exporteer regelmatig.</p>
+        <p className="muted small">Je data staat alleen in deze browser op dit toestel. Kopieer de back-up en bewaar hem in je notities of mail.</p>
         <div className="row">
-          <button className="ghost" onClick={() => downloadJson(`archer-desk-${new Date().toISOString().slice(0, 10)}.json`, { settings, template, log })}>Exporteer JSON</button>
-          <button className="ghost" onClick={() => fileRef.current?.click()}>Importeer JSON</button>
-          <input ref={fileRef} type="file" accept="application/json" hidden onChange={(e) => e.target.files?.[0] && importFile(e.target.files[0])} />
+          <button
+            className="ghost"
+            onClick={async () => {
+              const text = JSON.stringify({ settings, template, log });
+              setBackupText(text);
+              setBackupMsg((await copyText(text)) ? 'Back-up gekopieerd.' : 'Selecteer de tekst hieronder en kopieer hem.');
+            }}
+          >
+            Kopieer back-up
+          </button>
+          <button className="ghost" onClick={() => fileRef.current?.click()}>Bestand importeren</button>
+          <input ref={fileRef} type="file" accept="application/json,.json,.txt" hidden onChange={async (e) => e.target.files?.[0] && importText(await e.target.files[0].text())} />
+        </div>
+        <textarea
+          id="backup"
+          rows={4}
+          className="mono small"
+          value={backupText}
+          placeholder="Plak hier een back-up om hem terug te zetten"
+          onChange={(e) => setBackupText(e.target.value)}
+          onFocus={(e) => e.target.select()}
+        />
+        <div className="row">
+          <ConfirmButton disabled={!backupText.trim()} confirmLabel="Huidige data overschrijven?" onConfirm={() => importText(backupText)}>Plak-back-up terugzetten</ConfirmButton>
+          {backupMsg && <span className="muted small" role="status">{backupMsg}</span>}
         </div>
       </section>
     </div>

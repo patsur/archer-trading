@@ -21,6 +21,7 @@ export interface Settings {
   accountSize: number;
   balance: number;
   riskPct: number;
+  riskByPhase: Record<string, number>; // empty = use riskPct
   maxDailyLossPct: number;
   maxTotalDdPct: number;
   todayPnl: number;

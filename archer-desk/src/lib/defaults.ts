@@ -39,6 +39,7 @@ export const DEFAULT_SETTINGS: Settings = {
   accountSize: 100000,
   balance: 100000,
   riskPct: 0.5,
+  riskByPhase: {},
   maxDailyLossPct: 5,
   maxTotalDdPct: 10,
   todayPnl: 0,

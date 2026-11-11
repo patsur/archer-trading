@@ -1,20 +1,20 @@
 import { useEffect, useState } from 'react';
 import { riskBudget } from './lib/calc';
 import { DEFAULT_SETTINGS, DEFAULT_TEMPLATE, emptyDraft } from './lib/defaults';
-import { fmtMoney, useLocalState } from './lib/storage';
+import { fmt, fmtMoney, useLocalState } from './lib/storage';
 import type { ChecklistSection, LogEntry, Settings, TradeDraft } from './lib/types';
 import ChecklistPage from './pages/Checklist';
 import CalculatorPage from './pages/Calculator';
 import LogPage from './pages/Log';
 import SettingsPage from './pages/Settings';
 
-type Page = 'checklist' | 'calculator' | 'log' | 'settings';
+type Page = 'checklist' | 'calculator' | 'log' | 'instellingen';
 
 const NAV: { id: Page; label: string; hint: string }[] = [
   { id: 'checklist', label: 'Pre-trade checklist', hint: '1' },
   { id: 'calculator', label: 'Positie calculator', hint: '2' },
   { id: 'log', label: 'Logboek', hint: '3' },
-  { id: 'settings', label: 'Instellingen', hint: '4' },
+  { id: 'instellingen', label: 'Instellingen', hint: '4' },
 ];
 
 function initialPage(): Page {
@@ -30,8 +30,19 @@ export default function App() {
   const [log, setLog] = useLocalState<LogEntry[]>('archer.log', []);
 
   useEffect(() => {
-    window.location.hash = page;
+    try {
+      history.replaceState(null, '', `#${page}`);
+    } catch {
+      /* ignore */
+    }
+    window.scrollTo(0, 0);
   }, [page]);
+
+  useEffect(() => {
+    const onHash = () => setPage(initialPage());
+    window.addEventListener('hashchange', onHash);
+    return () => window.removeEventListener('hashchange', onHash);
+  }, []);
 
   const budget = riskBudget(settings);
   const dailyUsedPct = budget.dailyLimit > 0 ? Math.min(100, Math.max(0, (1 - budget.remainingDaily / budget.dailyLimit) * 100)) : 0;
@@ -60,7 +71,7 @@ export default function App() {
           <div className="budget-title">{settings.accountName}</div>
           <div className="budget-row">
             <span>Risico per trade</span>
-            <span className="mono">{fmtMoney((settings.accountSize * settings.riskPct) / 100, settings.currency)}</span>
+            <span className="mono">{fmt(settings.riskPct, 2)}% · {fmtMoney((settings.accountSize * settings.riskPct) / 100, settings.currency)}</span>
           </div>
           <div className="budget-row">
             <span>Ruimte vandaag</span>
@@ -73,7 +84,7 @@ export default function App() {
             <span>Tot max drawdown</span>
             <span className={`mono ${budget.remainingTotal <= 0 ? 'bad' : ''}`}>{fmtMoney(budget.remainingTotal, settings.currency)}</span>
           </div>
-          <button className="link" onClick={() => setPage('settings')}>P&L vandaag bijwerken →</button>
+          <button className="link" onClick={() => setPage('instellingen')}>P&L vandaag bijwerken →</button>
         </div>
       </aside>
 
@@ -89,7 +100,7 @@ export default function App() {
         )}
         {page === 'calculator' && <CalculatorPage settings={settings} />}
         {page === 'log' && <LogPage log={log} setLog={setLog} currency={settings.currency} />}
-        {page === 'settings' && (
+        {page === 'instellingen' && (
           <SettingsPage
             settings={settings}
             setSettings={setSettings}

@@ -1,8 +1,8 @@
 import { useState } from 'react';
-import { Field, Segmented, Stat } from '../components/Field';
+import { Field, Segmented, Select, Stat } from '../components/Field';
 import { cryptoPosition, forexPosition, quoteToAccountRate, riskBudget } from '../lib/calc';
-import { CRYPTO_SYMBOLS, FOREX_PRESETS } from '../lib/defaults';
-import { presetFor } from '../lib/sizing';
+import { CRYPTO_SYMBOLS, FOREX_PRESETS, PHASES } from '../lib/defaults';
+import { presetFor, riskPctFor } from '../lib/sizing';
 import { fmt, fmtMoney, num, useLocalState } from '../lib/storage';
 import type { Market, Settings } from '../lib/types';
 
@@ -10,6 +10,7 @@ interface CalcState {
   market: Market;
   riskMode: 'pct' | 'amount';
   riskPct: string;
+  phase: string;
   riskAmount: string;
   symbol: string;
   pipSize: string;
@@ -28,7 +29,7 @@ interface CalcState {
 
 export default function CalculatorPage({ settings }: { settings: Settings }) {
   const [c, setC] = useLocalState<CalcState>('archer.calc', {
-    market: 'forex', riskMode: 'pct', riskPct: String(settings.riskPct), riskAmount: '',
+    market: 'forex', riskMode: 'pct', riskPct: String(settings.riskPct), phase: '', riskAmount: '',
     symbol: 'EURUSD', pipSize: '0.0001', contractSize: '100000', conversionRate: '', lotStep: '0.01',
     entry: '', sl: '', tp: '', leverage: String(settings.defaultLeverage), qtyStep: '0.001', includeFees: true,
     partialPct: '50', partialAtR: '1',
@@ -95,6 +96,10 @@ export default function CalculatorPage({ settings }: { settings: Settings }) {
           <section className="card">
             <h2>Risico</h2>
             <div className="grid-3">
+              <Field label="BluePrint fase" hint="Vult het risico % van die fase in">
+                <Select value={c.phase ?? ''} placeholder="— standaard —" options={PHASES}
+                  onChange={(phase) => set({ phase, riskMode: 'pct', riskPct: String(riskPctFor(settings, phase)) })} />
+              </Field>
               <Field label="Modus">
                 <Segmented value={c.riskMode} onChange={(riskMode) => set({ riskMode })}
                   options={[{ value: 'pct', label: '% account' }, { value: 'amount', label: `Vast ${ccy}` }]} />
