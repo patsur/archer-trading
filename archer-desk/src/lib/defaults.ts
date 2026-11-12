@@ -14,7 +14,7 @@ export const phaseLabel = (id: string) =>
 export const PHASE_ENTRY_HINT: Record<string, string> = {
   F1: 'Daily set-ups; reversal (BoS / SoM) op een weekly level',
   F2: 'Continuation met de bias',
-  F3: 'Break & Retest van de stippellijn',
+  F3: 'Break & Retest van de stippellijn; tegen de bias bij rejection (0,5%)',
   F4: 'Continuation met de bias',
 };
 export const ZONES = ['Weekly Line Zone', 'Weekly Liquidity Zone', 'Daily S&D Zone'];

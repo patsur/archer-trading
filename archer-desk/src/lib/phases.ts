@@ -8,8 +8,10 @@
 //                   directions allowed on daily set-ups, after: only with the bias.
 //   F2 Impuls       reversal on a weekly level -> only bias set-ups until the stippellijn.
 //   F3 Beslissing   at the stippellijn: break & retest -> F4, rejection -> back to F1.
+//                   Counter-bias trades allowed here at reduced risk (0.5%).
 //   F4 Verderzetting only bias set-ups; rejection / indicational candle -> new F1.
-//   Close beyond the swing extreme = switch of momentum (bias flips).
+//   Close beyond the swing extreme = switch of momentum: bias flips and the market is in F4
+//   of the new bias (the broken swing level acts as the stippellijn).
 
 import type { Direction } from './types';
 
@@ -59,8 +61,9 @@ export function allowedDirections(p: Pick<TrackedPair, 'bias' | 'phase' | 'first
   switch (p.phase) {
     case 'F1':
       return p.firstStructureHit ? [withBias] : [withBias, opposite(withBias)];
-    case 'F2':
     case 'F3':
+      return [withBias, opposite(withBias)];
+    case 'F2':
     case 'F4':
       return [withBias];
     default:
@@ -110,7 +113,7 @@ export interface Transition {
   label: string;
   to: PhaseId;
   /** Extra price the trader enters for this transition. */
-  ask?: 'reversalLevel' | 'newTop';
+  ask?: 'reversalLevel' | 'newTop' | 'som';
 }
 
 export function transitions(p: TrackedPair): Transition[] {
@@ -119,7 +122,7 @@ export function transitions(p: TrackedPair): Transition[] {
     case 'F1':
       return [
         { label: 'Reversal op weekly level → Fase 2', to: 'F2', ask: 'reversalLevel' },
-        { label: `Close voorbij ${sw} → switch of momentum`, to: 'SOM' },
+        { label: `Close voorbij ${sw} → switch of momentum (fase 4 tegengestelde bias)`, to: 'F4', ask: 'som' as const },
       ];
     case 'F2':
       return [{ label: 'Stippellijn bereikt → Fase 3', to: 'F3' }];
@@ -154,9 +157,14 @@ export function applyTransition(p: TrackedPair, t: Transition, value: number | n
     next.reversalLevel = null;
     note += ` · nieuwe stippellijn ${value}`;
   }
-  if (t.to === 'SOM') {
+  if (t.ask === 'som') {
+    // Mirror the fib: the old top starts the new move (fib 100%), the broken swing level is the new stippellijn.
     next.bias = p.bias === 'bullish' ? 'bearish' : 'bullish';
-    note += ` · bias nu ${next.bias}`;
+    next.top = p.swingExtreme;
+    next.fib100 = p.top;
+    next.swingExtreme = p.top;
+    next.reversalLevel = p.top;
+    note = `Switch of momentum · bias nu ${next.bias} · fase 4`;
   }
   next.history = [{ at: now.toISOString(), from: p.phase, to: t.to, note }, ...p.history];
   return next;

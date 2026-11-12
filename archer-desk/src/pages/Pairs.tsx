@@ -16,6 +16,8 @@ interface Props {
   onOpenChecklist: (p: TrackedPair) => void;
 }
 
+const needsPrice = (t: Transition) => t.ask === 'reversalLevel' || t.ask === 'newTop';
+
 const digitsFor = (p: TrackedPair) => (p.market === 'crypto' ? 2 : p.symbol.endsWith('JPY') ? 3 : 5);
 
 /** Number input that keeps what you type and saves on blur, so "1." or "0,6" never jumps. */
@@ -161,18 +163,18 @@ export default function PairsPage({ pairs, setPairs, settings, onOpenChecklist }
                 {transitions(selected).map((t) =>
                   pending?.t.label === t.label ? (
                     <div className="pending" key={t.label}>
-                      {t.ask && (
+                      {needsPrice(t) && (
                         <Field label={t.ask === 'reversalLevel' ? 'Prijs van de reversal (nieuwe low/high)' : 'Top van fase 4 (nieuwe stippellijn)'}>
                           <input inputMode="decimal" autoFocus value={pending.value} onChange={(e) => setPending({ t, value: e.target.value })} />
                         </Field>
                       )}
                       <div className="row">
-                        <button className="primary" disabled={!!t.ask && num(pending.value) == null} onClick={() => runTransition(t, num(pending.value))}>Bevestig</button>
+                        <button className="primary" disabled={needsPrice(t) && num(pending.value) == null} onClick={() => runTransition(t, num(pending.value))}>Bevestig</button>
                         <button className="ghost" onClick={() => setPending(null)}>Annuleer</button>
                       </div>
                     </div>
                   ) : (
-                    <button key={t.label} className={`ghost transition ${t.to === 'SOM' ? 'danger' : ''}`} onClick={() => setPending({ t, value: '' })}>{t.label}</button>
+                    <button key={t.label} className={`ghost transition ${t.ask === 'som' ? 'danger' : ''}`} onClick={() => setPending({ t, value: '' })}>{t.label}</button>
                   ),
                 )}
               </div>

@@ -24,8 +24,9 @@ describe('allowedDirections', () => {
     expect(allowedDirections(btc)).toEqual(['long', 'short']);
     expect(allowedDirections({ ...btc, firstStructureHit: true })).toEqual(['long']);
   });
-  it('phase 2-4 only with the bias, SoM none', () => {
+  it('phase 2 and 4 only with the bias, phase 3 both', () => {
     expect(allowedDirections({ ...btc, phase: 'F2' })).toEqual(['long']);
+    expect(allowedDirections({ ...btc, phase: 'F3' })).toEqual(['long', 'short']);
     expect(allowedDirections({ ...btc, bias: 'bearish', phase: 'F4' })).toEqual(['short']);
     expect(allowedDirections({ ...btc, phase: 'SOM' })).toEqual([]);
   });
@@ -47,10 +48,13 @@ describe('transitions', () => {
     expect(p.firstStructureHit).toBe(false);
     expect(p.history).toHaveLength(4);
   });
-  it('switch of momentum flips the bias', () => {
+  it('switch of momentum flips the bias into phase 4 with a mirrored fib', () => {
     const p = applyTransition(btc, transitions(btc)[1], null);
-    expect(p.phase).toBe('SOM');
+    expect(p.phase).toBe('F4');
     expect(p.bias).toBe('bearish');
+    expect(p.top).toBe(98075.19);
+    expect(p.fib100).toBe(107431.26);
+    expect(allowedDirections(p)).toEqual(['short']);
   });
 });
 
