@@ -16,6 +16,7 @@ interface Props {
   onOpenChecklist: (p: TrackedPair) => void;
 }
 
+const pair_extreme = (p: TrackedPair) => (p.bias === 'bullish' ? 'Top' : 'Bodem');
 const needsPrice = (t: Transition) => t.ask === 'reversalLevel' || t.ask === 'newTop';
 
 const digitsFor = (p: TrackedPair) => (p.market === 'crypto' ? 2 : p.symbol.endsWith('JPY') ? 3 : 5);
@@ -164,7 +165,7 @@ export default function PairsPage({ pairs, setPairs, settings, onOpenChecklist }
                   pending?.t.label === t.label ? (
                     <div className="pending" key={t.label}>
                       {needsPrice(t) && (
-                        <Field label={t.ask === 'reversalLevel' ? 'Prijs van de reversal (nieuwe low/high)' : 'Top van fase 4 (nieuwe stippellijn)'}>
+                        <Field label={t.ask === 'reversalLevel' ? 'Prijs van de reversal (nieuwe low/high)' : `${pair_extreme(selected)} van fase 4 (nieuwe stippellijn)`}>
                           <input inputMode="decimal" autoFocus value={pending.value} onChange={(e) => setPending({ t, value: e.target.value })} />
                         </Field>
                       )}
@@ -232,7 +233,13 @@ export default function PairsPage({ pairs, setPairs, settings, onOpenChecklist }
 
 function FibLadder({ pair }: { pair: TrackedPair }) {
   if (pair.top == null || pair.fib100 == null || pair.top === pair.fib100) {
-    return <p className="muted small">Vul stippellijn en fib 100% in om de niveaus te zien.</p>;
+    return (
+      <p className="muted small">
+        {pair.phase === 'F4' && pair.top == null
+          ? 'Fib nog niet te trekken: wacht op een weekly candle van de tegengestelde kleur. Die sluit fase 4 af.'
+          : 'Vul stippellijn en fib 100% in om de niveaus te zien.'}
+      </p>
+    );
   }
   const { top, fib100 } = pair;
   const d = digitsFor(pair);

@@ -52,9 +52,14 @@ describe('transitions', () => {
     const p = applyTransition(btc, transitions(btc)[1], null);
     expect(p.phase).toBe('F4');
     expect(p.bias).toBe('bearish');
-    expect(p.top).toBe(98075.19);
+    expect(p.top).toBeNull();
     expect(p.fib100).toBe(107431.26);
     expect(allowedDirections(p)).toEqual(['short']);
+    // first bullish weekly candle: its low becomes the new stippellijn, old top stays fib 100%
+    const q = applyTransition(p, transitions(p)[0], 92000);
+    expect(q.phase).toBe('F1');
+    expect(q.top).toBe(92000);
+    expect(q.fib100).toBe(107431.26);
   });
 });
 

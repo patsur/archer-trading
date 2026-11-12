@@ -11,7 +11,8 @@
 //                   Counter-bias trades allowed here at reduced risk (0.5%).
 //   F4 Verderzetting only bias set-ups; rejection / indicational candle -> new F1.
 //   Close beyond the swing extreme = switch of momentum: bias flips and the market is in F4
-//   of the new bias (the broken swing level acts as the stippellijn).
+//   of the new bias. The new fib (old top = 100%) can only be drawn once a weekly candle of the
+//   opposite colour prints; that candle ends F4 and its extreme becomes the new stippellijn.
 
 import type { Direction } from './types';
 
@@ -132,7 +133,7 @@ export function transitions(p: TrackedPair): Transition[] {
         { label: 'Rejection → terug naar Fase 1', to: 'F1' },
       ];
     case 'F4':
-      return [{ label: 'Rejection / indicational candle → nieuwe Fase 1', to: 'F1', ask: 'newTop' }];
+      return [{ label: 'Candle tegengestelde kleur (rejection / indicational) → nieuwe Fase 1', to: 'F1', ask: 'newTop' }];
     default:
       return [];
   }
@@ -158,9 +159,10 @@ export function applyTransition(p: TrackedPair, t: Transition, value: number | n
     note += ` · nieuwe stippellijn ${value}`;
   }
   if (t.ask === 'som') {
-    // Mirror the fib: the old top starts the new move (fib 100%), the broken swing level is the new stippellijn.
+    // Mirror the fib: the old top starts the new move (fib 100%). The stippellijn is unknown until
+    // a candle of the opposite colour prints, so it stays empty for now.
     next.bias = p.bias === 'bullish' ? 'bearish' : 'bullish';
-    next.top = p.swingExtreme;
+    next.top = null;
     next.fib100 = p.top;
     next.swingExtreme = p.top;
     next.reversalLevel = p.top;
