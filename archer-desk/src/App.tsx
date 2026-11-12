@@ -1,32 +1,51 @@
 import { useEffect, useState } from 'react';
 import { riskBudget } from './lib/calc';
-import { DEFAULT_SETTINGS, DEFAULT_TEMPLATE, emptyDraft } from './lib/defaults';
-import { fmt, fmtMoney, useLocalState } from './lib/storage';
+import { DEFAULT_SETTINGS, DEFAULT_TEMPLATE, EXAMPLE_PAIRS, emptyDraft } from './lib/defaults';
+import { allowedDirections, biasDirection, type TrackedPair } from './lib/phases';
+import { fmt, fmtMoney, readStored, useLocalState } from './lib/storage';
 import type { ChecklistSection, LogEntry, Settings, TradeDraft } from './lib/types';
 import ChecklistPage from './pages/Checklist';
 import CalculatorPage from './pages/Calculator';
 import LogPage from './pages/Log';
+import PairsPage from './pages/Pairs';
 import SettingsPage from './pages/Settings';
 
-type Page = 'checklist' | 'calculator' | 'log' | 'instellingen';
+type Page = 'pairs' | 'checklist' | 'calculator' | 'log' | 'instellingen';
 
 const NAV: { id: Page; label: string; hint: string }[] = [
-  { id: 'checklist', label: 'Pre-trade checklist', hint: '1' },
-  { id: 'calculator', label: 'Positie calculator', hint: '2' },
-  { id: 'log', label: 'Logboek', hint: '3' },
-  { id: 'instellingen', label: 'Instellingen', hint: '4' },
+  { id: 'pairs', label: 'Pairs & fases', hint: '1' },
+  { id: 'checklist', label: 'Pre-trade checklist', hint: '2' },
+  { id: 'calculator', label: 'Positie calculator', hint: '3' },
+  { id: 'log', label: 'Logboek', hint: '4' },
+  { id: 'instellingen', label: 'Instellingen', hint: '5' },
 ];
 
 function initialPage(): Page {
   const h = window.location.hash.slice(1) as Page;
-  return NAV.some((n) => n.id === h) ? h : 'checklist';
+  return NAV.some((n) => n.id === h) ? h : 'pairs';
 }
 
 export default function App() {
   const [page, setPage] = useState<Page>(initialPage);
-  const [settings, setSettings] = useLocalState<Settings>('archer.settings', DEFAULT_SETTINGS);
-  const [template, setTemplate] = useLocalState<ChecklistSection[]>('archer.template', DEFAULT_TEMPLATE);
-  const [draft, setDraft] = useLocalState<TradeDraft>('archer.draft', emptyDraft());
+  // v2 keys: phases became F1–F4 with risk per phase. Account fields carry over from v1.
+  const [settings, setSettings] = useLocalState<Settings>('archer.settings.v2', () => {
+    const { riskPct: _r, riskByPhase: _p, ...v1 } = readStored<Partial<Settings>>('archer.settings', {});
+    return { ...DEFAULT_SETTINGS, ...v1 };
+  });
+  const [template, setTemplate] = useLocalState<ChecklistSection[]>('archer.template.v2', DEFAULT_TEMPLATE);
+  const [draft, setDraft] = useLocalState<TradeDraft>('archer.draft.v2', emptyDraft());
+  const [pairs, setPairs] = useLocalState<TrackedPair[]>('archer.pairs', EXAMPLE_PAIRS);
+
+  const openChecklist = (p: TrackedPair) => {
+    const allowed = allowedDirections(p);
+    setDraft(() => ({
+      ...emptyDraft(p.market),
+      symbol: p.symbol,
+      phase: p.phase,
+      direction: allowed.includes(biasDirection(p.bias)) ? biasDirection(p.bias) : allowed[0] ?? 'long',
+    }));
+    setPage('checklist');
+  };
   const [log, setLog] = useLocalState<LogEntry[]>('archer.log', []);
 
   useEffect(() => {
@@ -89,8 +108,11 @@ export default function App() {
       </aside>
 
       <main className="content">
+        {page === 'pairs' && <PairsPage pairs={pairs} setPairs={setPairs} settings={settings} onOpenChecklist={openChecklist} />}
         {page === 'checklist' && (
           <ChecklistPage
+            pairs={pairs}
+            onGoPairs={() => setPage('pairs')}
             settings={settings}
             template={template}
             draft={draft}

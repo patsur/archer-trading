@@ -1,7 +1,22 @@
+import type { TrackedPair } from './phases';
 import type { ChecklistSection, Settings, TradeDraft } from './types';
 
-// Options taken from the existing Archer Trading Review app (BluePrint v1.0).
-export const PHASES = ['Fase 1 — Relief', 'Fase 2 — Structuur', 'Fase 3', 'Fase 4 — Impuls'];
+// BluePrint weekly phase cycle (see lib/phases.ts).
+export const PHASES: { value: string; label: string }[] = [
+  { value: 'F1', label: 'Fase 1 — Correctie' },
+  { value: 'F2', label: 'Fase 2 — Impuls' },
+  { value: 'F3', label: 'Fase 3 — Beslissing' },
+  { value: 'F4', label: 'Fase 4 — Verderzetting' },
+];
+export const phaseLabel = (id: string) =>
+  id === 'SOM' ? 'Switch of momentum' : PHASES.find((p) => p.value === id)?.label ?? (id || '—');
+/** Which entry types fit each phase (shown as guidance). */
+export const PHASE_ENTRY_HINT: Record<string, string> = {
+  F1: 'Daily set-ups; reversal (BoS / SoM) op een weekly level',
+  F2: 'Continuation met de bias',
+  F3: 'Break & Retest van de stippellijn',
+  F4: 'Continuation met de bias',
+};
 export const ZONES = ['Weekly Line Zone', 'Weekly Liquidity Zone', 'Daily S&D Zone'];
 export const ENTRY_TYPES = [
   'Reversal — Break of Structure',
@@ -38,8 +53,8 @@ export const DEFAULT_SETTINGS: Settings = {
   currency: 'USD',
   accountSize: 100000,
   balance: 100000,
-  riskPct: 0.5,
-  riskByPhase: {},
+  riskPct: 1,
+  riskByPhase: { F1: 0.5, F2: 1, F3: 0.5, F4: 1 },
   maxDailyLossPct: 5,
   maxTotalDdPct: 10,
   todayPnl: 0,
@@ -59,7 +74,7 @@ export const DEFAULT_TEMPLATE: ChecklistSection[] = [
     items: [
       { id: 'ctx-bias', text: 'Weekly bias is duidelijk en de trade gaat mee met de bias', required: true },
       { id: 'ctx-zone', text: 'Prijs reageert op een geldige zone (Weekly Line / Liquidity of Daily S&D)', required: true },
-      { id: 'ctx-phase', text: 'BluePrint-fase is geïdentificeerd en past bij deze entry', required: true },
+      { id: 'ctx-phase', text: 'Richting is toegelaten in de huidige fase (pair-tracker)', required: true, auto: 'phase' },
       { id: 'ctx-room', text: 'Geen tegengestelde HTF-zone vlak voor mijn target', required: false },
     ],
   },
@@ -67,7 +82,7 @@ export const DEFAULT_TEMPLATE: ChecklistSection[] = [
     id: 'entry',
     title: '2 · Entry — 4H',
     items: [
-      { id: 'en-type', text: 'Entry type is bevestigd (BoS / SoM / Continuation / B&R / PiP)', required: true },
+      { id: 'en-type', text: 'Entry type is bevestigd en past bij de fase', required: true },
       { id: 'en-close', text: 'Bevestiging op candle close — ik anticipeer niet', required: true },
       { id: 'en-sl', text: 'Stop loss staat achter logische structuur, niet op een willekeurig getal', required: true },
       { id: 'en-dir', text: 'Richting klopt met entry en stop loss', required: true, auto: 'direction' },
@@ -111,3 +126,23 @@ export function emptyDraft(market: TradeDraft['market'] = 'forex'): TradeDraft {
     notes: '',
   };
 }
+
+/** Example from the TradingView drawing, so the tracker does not open empty. */
+export const EXAMPLE_PAIRS: TrackedPair[] = [
+  {
+    id: 'example-btc',
+    symbol: 'BTCUSDT',
+    market: 'crypto',
+    bias: 'bullish',
+    phase: 'F2',
+    top: 107431.26,
+    fib100: 98958.23,
+    swingExtreme: 98075.19,
+    firstStructureHit: true,
+    reversalLevel: 102175.04,
+    price: 104800,
+    notes: 'Voorbeeld uit je tekening. Pas aan of verwijder.',
+    history: [],
+    updatedAt: new Date(0).toISOString(),
+  },
+];

@@ -1,6 +1,8 @@
-import { useMemo } from 'react';
+import { useEffect, useMemo } from 'react';
 import { ConfirmButton, Field, Segmented, Select, Stat } from '../components/Field';
-import { CRYPTO_SYMBOLS, ENTRY_TYPES, FOREX_PRESETS, PHASES, ZONES, emptyDraft } from '../lib/defaults';
+import { CRYPTO_SYMBOLS, ENTRY_TYPES, FOREX_PRESETS, PHASES, PHASE_ENTRY_HINT, ZONES, emptyDraft, phaseLabel } from '../lib/defaults';
+import { allowedDirections, type TrackedPair } from '../lib/phases';
+import { DirectionPills } from './Pairs';
 import { sizeDraft } from '../lib/sizing';
 import { fmt, fmtMoney, uid } from '../lib/storage';
 import type { ChecklistItem, ChecklistSection, LogEntry, Settings, TradeDraft, Verdict } from '../lib/types';
@@ -11,9 +13,20 @@ interface Props {
   draft: TradeDraft;
   setDraft: (fn: (d: TradeDraft) => TradeDraft) => void;
   onSave: (e: LogEntry) => void;
+  pairs: TrackedPair[];
+  onGoPairs: () => void;
 }
 
-export default function ChecklistPage({ settings, template, draft, setDraft, onSave }: Props) {
+const norm = (s: string) => s.toUpperCase().replace(/[^A-Z0-9]/g, '');
+
+export default function ChecklistPage({ settings, template, draft, setDraft, onSave, pairs, onGoPairs }: Props) {
+  const tracked = draft.symbol ? pairs.find((p) => p.symbol && norm(p.symbol) === norm(draft.symbol)) ?? null : null;
+
+  // The phase comes from the pair-tracker when the pair is tracked.
+  useEffect(() => {
+    if (tracked && tracked.phase !== 'SOM' && draft.phase !== tracked.phase) setDraft((d) => ({ ...d, phase: tracked.phase }));
+  }, [tracked?.id, tracked?.phase]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const sizing = useMemo(() => sizeDraft(draft, settings), [draft, settings]);
   const update = (patch: Partial<TradeDraft>) => setDraft((d) => ({ ...d, ...patch }));
 
@@ -25,6 +38,8 @@ export default function ChecklistPage({ settings, template, draft, setDraft, onS
         return sizing.withinBudget;
       case 'direction':
         return sizing.directionOk;
+      case 'phase':
+        return tracked ? allowedDirections(tracked).includes(draft.direction) : null;
       default:
         return null;
     }
@@ -107,10 +122,28 @@ export default function ChecklistPage({ settings, template, draft, setDraft, onS
                   options={[{ value: 'long', label: 'Long ▲', tone: 'up' }, { value: 'short', label: 'Short ▼', tone: 'down' }]}
                 />
               </Field>
-              <Field label="BluePrint fase"><Select value={draft.phase} onChange={(phase) => update({ phase })} options={PHASES} /></Field>
+              <Field label="BluePrint fase" hint={tracked ? 'Uit pair-tracker' : undefined}>
+                <Select value={draft.phase} onChange={(phase) => update({ phase })} options={PHASES} />
+              </Field>
               <Field label="Zone type"><Select value={draft.zone} onChange={(zone) => update({ zone })} options={ZONES} /></Field>
-              <Field label="4H entry type"><Select value={draft.entryType} onChange={(entryType) => update({ entryType })} options={ENTRY_TYPES} /></Field>
+              <Field label="4H entry type" hint={PHASE_ENTRY_HINT[draft.phase] ? `Past bij deze fase: ${PHASE_ENTRY_HINT[draft.phase]}` : undefined}>
+                <Select value={draft.entryType} onChange={(entryType) => update({ entryType })} options={ENTRY_TYPES} />
+              </Field>
             </div>
+            {tracked ? (
+              <div className="tracker-banner">
+                <span className={`bias ${tracked.bias}`}>{tracked.bias === 'bullish' ? 'Bullish' : 'Bearish'}</span>
+                <span>{phaseLabel(tracked.phase)}</span>
+                <span className="muted small">toegelaten</span>
+                <DirectionPills pair={tracked} />
+                {!allowedDirections(tracked).includes(draft.direction) && <strong className="bad small">Deze richting is niet toegelaten in deze fase</strong>}
+              </div>
+            ) : draft.symbol ? (
+              <div className="tracker-banner">
+                <span className="muted small">{draft.symbol} staat niet in je pair-tracker. Zonder weekly bias en fase geen trade.</span>
+                <button className="link" onClick={onGoPairs}>Naar Pairs & fases →</button>
+              </div>
+            ) : null}
           </section>
 
           {template.map((section) => (
@@ -135,7 +168,7 @@ export default function ChecklistPage({ settings, template, draft, setDraft, onS
                           {item.auto === 'risk' && <em> (budget {fmtMoney(sizing.budgetRemaining, settings.currency)})</em>}
                         </span>
                         {item.required && <span className="tag req">verplicht</span>}
-                        {item.auto && <span className={`tag ${auto == null ? '' : auto ? 'ok' : 'no'}`}>{auto == null ? 'vul plan in' : 'auto'}</span>}
+                        {item.auto && <span className={`tag ${auto == null ? '' : auto ? 'ok' : 'no'}`}>{auto == null ? (item.auto === 'phase' ? 'niet in tracker' : 'vul plan in') : 'auto'}</span>}
                       </label>
                     </li>
                   );

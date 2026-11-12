@@ -1,6 +1,6 @@
 export type Market = 'forex' | 'crypto';
 export type Direction = 'long' | 'short';
-export type AutoCheck = 'rr' | 'risk' | 'direction';
+export type AutoCheck = 'rr' | 'risk' | 'direction' | 'phase';
 
 export interface ChecklistItem {
   id: string;

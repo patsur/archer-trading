@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react';
 // Local-only storage for v1. The data shapes are kept flat so they can move to
 // Supabase later (journal phase) without reshaping.
 
-function read<T>(key: string, fallback: T): T {
+export function readStored<T>(key: string, fallback: T): T {
   try {
     const raw = localStorage.getItem(key);
     if (raw == null) return fallback;
@@ -18,8 +18,11 @@ function read<T>(key: string, fallback: T): T {
   }
 }
 
-export function useLocalState<T>(key: string, fallback: T) {
-  const [value, setValue] = useState<T>(() => read(key, fallback));
+export function useLocalState<T>(key: string, fallback: T | (() => T)) {
+  const [value, setValue] = useState<T>(() => {
+    const fb = typeof fallback === 'function' ? (fallback as () => T)() : fallback;
+    return readStored(key, fb);
+  });
   useEffect(() => {
     try {
       localStorage.setItem(key, JSON.stringify(value));

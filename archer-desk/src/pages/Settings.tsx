@@ -18,7 +18,7 @@ const NUMBER_FIELDS: { key: keyof Settings; label: string; hint?: string }[] = [
   { key: 'balance', label: 'Huidige balans' },
   { key: 'todayPnl', label: 'P&L vandaag', hint: 'Negatief bij verlies, incl. floating' },
   { key: 'openRisk', label: 'Open risico', hint: 'Som van risico op lopende trades' },
-  { key: 'riskPct', label: 'Standaard risico per trade %', hint: 'Geldt als een fase geen eigen % heeft' },
+  { key: 'riskPct', label: 'Standaard risico per trade %', hint: 'Als er geen fase gekozen is' },
   { key: 'maxDailyLossPct', label: 'Max daily loss %' },
   { key: 'maxTotalDdPct', label: 'Max drawdown %' },
   { key: 'minRR', label: 'Minimum R:R' },
@@ -88,8 +88,8 @@ export default function SettingsPage({ settings, setSettings, template, setTempl
             <p className="muted small">Leeg laten = standaard risico. De checklist gebruikt het % van de fase die je kiest.</p>
           </div>
           <div className="grid-4">
-            {PHASES.map((ph) => (
-              <Field key={ph} label={ph}>
+            {PHASES.map(({ value: ph, label }) => (
+              <Field key={ph} label={label}>
                 <input
                   inputMode="decimal"
                   placeholder={`${settings.riskPct}`}

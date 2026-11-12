@@ -13,15 +13,16 @@ export function Field({ label, children, hint }: { label: string; children: Reac
 export function Select({ value, onChange, options, placeholder = '— selecteer —' }: {
   value: string;
   onChange: (v: string) => void;
-  options: string[];
+  options: (string | { value: string; label: string })[];
   placeholder?: string;
 }) {
   return (
     <select value={value} onChange={(e) => onChange(e.target.value)}>
       <option value="">{placeholder}</option>
-      {options.map((o) => (
-        <option key={o} value={o}>{o}</option>
-      ))}
+      {options.map((o) => {
+        const opt = typeof o === 'string' ? { value: o, label: o } : o;
+        return <option key={opt.value} value={opt.value}>{opt.label}</option>;
+      })}
     </select>
   );
 }
